@@ -17,7 +17,7 @@
     // Modified for http://www.DFRobot.com by Lumi, Jan. 2014
     // Example by Tom Igoe
 */
- 
+
 import processing.serial.*;
 
 int port = 0;   // If the 4 dots are RED try changing port number
@@ -40,16 +40,14 @@ int left = #FF0000;
 int right = #FF0000;
 int middle = #FF0000;
 int alt = #FF0000;
- 
- // declare variables to hold color for the four points
- color p1color = color( 255, 0, 0 ); // RED
- color p2color = color( 0, 255, 0 ); // GREEN
- color p3color = color( 0, 0, 255 ); // BLUE
- color p4color = color( 0, 0, 255 ); // BLUE
- 
- 
- 
- 
+
+// declare variables to hold color for the four points
+color p1color = color( 255, 0, 0 ); // RED
+color p2color = color( 0, 255, 0 ); // GREEN
+color p3color = color( 0, 0, 255 ); // BLUE
+color p4color = color( 0, 0, 255 ); // BLUE
+
+
 void setup() {
   // List all the available serial ports
   println(Serial.list());
@@ -62,23 +60,18 @@ void setup() {
   myString = null;
   size(1023,768);
   frameRate(30);
-
 }
 
-
-
- 
 void draw() {
   // preparation stage
   while( myPort.available() > 0 ) {
-     myString = myPort.readStringUntil(lf);
-     if( myString != null) {
-       convertmyStringToCoordinates();
-     }
+    myString = myPort.readStringUntil(lf);
+    if( myString != null) {
+      convertmyStringToCoordinates();
+    }
   }
 
-  
-  // drawing stage   
+  // drawing stage
   background(77); // repaint the whole drawing area with dark grey color (77,77,77), making the whole window clear and clean
   // immediately draw the circles after clearing, we've done the time-consuming preparation beforehand in convertmyStringToCoordinates() so this will give us minimal lag ( hopefully no flickering ).
   drawCircle( p1x, p1y, p1color );
@@ -101,45 +94,40 @@ void draw() {
 }  
 
 
-
-    
 void drawCircle( int xval, int yval, color c ){ 
-  if( xval != 1023 && yval != 1023 ){ // only draw when both x and y is not 1023. When x=1023 and y=1023, the point is NOT detected by the IR camera, i.e. out of range
-    ellipseMode(RADIUS);  // Set ellipseMode to RADIUS
-    fill( c );  // Set the fill color
-    ellipse(xval, yval, 20, 20); //draws an ellipse with with horizontal diameter of 20px andvertical diameter of 20px. 
+  if( xval != 1023 && yval != 1023 ){  // only draw when both x and y is not 1023. When x=1023 and y=1023, the point is NOT detected by the IR camera, i.e. out of range
+    ellipseMode(RADIUS);               // Set ellipseMode to RADIUS
+    fill( c );                         // Set the fill color
+    ellipse(xval, yval, 20, 20);       // draws an ellipse with with horizontal diameter of 20px andvertical diameter of 20px.
   }
 }
 
 void buttonTest( int xval, int yval, color c ){ 
-    ellipseMode(RADIUS);  // Set ellipseMode to RADIUS
-    fill( c );  // Set the fill color
-    ellipse(xval, yval, 20, 20); //draws an ellipse with with horizontal diameter of 20px andvertical diameter of 20px. 
-  }
-
-  
-
+  ellipseMode(RADIUS);                 // Set ellipseMode to RADIUS
+  fill( c );                           // Set the fill color
+  ellipse(xval, yval, 20, 20);         // draws an ellipse with with horizontal diameter of 20px andvertical diameter of 20px.
+}
 
 void convertmyStringToCoordinates() {
   println(myString); // display the incoming string
 
-  // the next line does many things - it creates an array of integers named output, splits the string into 8 pieces of text, using comma as the delimiter, converts each of the 8 pieces of text into numbers and store them into the array in a sequential manner.  
+  // the next line does many things - it creates an array of integers named output, splits the string into 8 pieces of text, using comma as the delimiter, converts each of the 8 pieces of text into numbers and store them into the array in a sequential manner.
   int[] output = int (split(trim(myString), ',')); 
-  
+
   // now we need to copy the values from the array into global variables p1x..p4y, and make them available outside of this procedure.
   // because we need to access them at the drawing stage, later in the draw() cycle
   p1x = output[0];
   p1y = output[1];
-       
+
   p2x = output[2];
   p2y = output[3];
-       
+
   p3x = output[4];
   p3y = output[5];
-       
+
   p4x = output[6];
   p4y = output[7];
-  
+
   cali = output[8];
   left = output[9];
   right = output[10];
