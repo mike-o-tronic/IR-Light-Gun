@@ -120,7 +120,7 @@ void setup() {
 }
 
 void loop() {
-  readButtonState();
+  readButtonStates();
   
   if (count > 3) {
     getPosition();
@@ -169,7 +169,7 @@ void loop() {
 
     reset();
   }
-  saveButtonState();
+  saveButtonStates();
   PrintResults();
 }
 
