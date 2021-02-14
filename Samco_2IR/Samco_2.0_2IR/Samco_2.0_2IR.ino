@@ -35,7 +35,22 @@ int conMoveYAxis = 0;
 
 int count = 4;                  // Set intial count
 
-int _tigger = 7;                // Label Pin to buttons
+// original ribbon direction (pin 1 at top)
+int _trigger = 13;               // Label Pin to buttons
+int _up = 10;
+int _down = 12;
+int _left = 11;
+int _right = 9;
+int _APin = A1;
+int _BPin = A0;
+int _startPin = A2;
+int _select = A3;
+int _reload = 7;
+int _pedal = 5;
+
+/*
+// reversed ribbon direction (pin 1 at bottom)
+int _trigger = 7;                // Label Pin to buttons
 int _up = 11;
 int _down = 9;
 int _left = 10;
@@ -46,6 +61,7 @@ int _startPin = A2;
 int _select = A3;
 int _reload = 13;
 int _pedal = 5;
+*/
 
 int buttonState1 = 0;
 int lastButtonState1 = 0;
@@ -81,12 +97,11 @@ int res_y = 1080;               // Put your screen resolution height here
 
 
 void setup() {
-
   Serial.begin(9600);                     // For debugging (make sure your serial monitor has the same baud rate)
 
   AbsMouse.init(res_x, res_y);
 
-  pinMode(_tigger, INPUT_PULLUP);         // Set pin modes
+  pinMode(_trigger, INPUT_PULLUP);         // Set pin modes
   pinMode(_up, INPUT_PULLUP);
   pinMode(_down, INPUT_PULLUP);
   pinMode(_left, INPUT_PULLUP);
@@ -105,10 +120,11 @@ void setup() {
 }
 
 void loop() {
+  readButtonState();
+  
   if (count > 3) {
     getPosition();
     mouseButtons();
-    PrintResults();
     go();
   }
   /* ------------------ START/PAUSE MOUSE ---------------------- */
@@ -116,7 +132,6 @@ void loop() {
     skip();
     mouseCount();
     mouseButtons();
-    PrintResults();
   }
   /* ---------------------- TOP LEFT --------------------------- */
   else if (count > 1 ) {
@@ -128,8 +143,6 @@ void loop() {
 
     xLeft = finalX;
     yTop = finalY;
-
-    PrintResults();
   }
   /* -------------------- BOTTOM RIGHT ------------------------- */
   else if (count > 0 ) {
@@ -141,8 +154,6 @@ void loop() {
 
     xRight = finalX;
     yBottom = finalY;
-
-    PrintResults();
   }
   /* ---------------------- LET'S GO --------------------------- */
   else {
@@ -156,9 +167,10 @@ void loop() {
     conMoveXAxis = constrain (MoveXAxis, 0, res_x);
     conMoveYAxis = constrain (MoveYAxis, 0, res_y);
 
-    PrintResults();
     reset();
   }
+  saveButtonState();
+  PrintResults();
 }
 
 
@@ -196,102 +208,21 @@ void getPosition() {    // Get tilt adjusted position from IR postioning camera
   }
 }
 
-void go() {    // Setup Start Calibration Button
-  buttonState1 = digitalRead(_reload);
-  if (buttonState1 != lastButtonState1) {
-    if (buttonState1 == LOW) {
-      count--;
-    } else { // do nothing
-    }
-    delay(50);
-  }
-  lastButtonState1 = buttonState1;
+void readButtonStates() {
+  buttonState1 = digitalRead(_trigger);
+  buttonState2 = digitalRead(_up);
+  buttonState3 = digitalRead(_down);
+  buttonState4 = digitalRead(_left);
+  buttonState5 = digitalRead(_right);
+  buttonState6 = digitalRead(_APin);
+  buttonState7 = digitalRead(_BPin);
+  buttonState8 = digitalRead(_startPin);
+  buttonState9 = digitalRead(_select);
+  buttonState10 = digitalRead(_reload);
 }
 
-void mouseButtons() {    // Setup Left, Right & Middle Mouse buttons
-  buttonState2 = digitalRead(_tigger);
-  buttonState3 = digitalRead(_up);  
-  buttonState4 = digitalRead(_down);
-  buttonState5 = digitalRead(_left);
-  buttonState6 = digitalRead(_right);
-  buttonState7 = digitalRead(_APin);
-  buttonState8 = digitalRead(_BPin);
-  buttonState9 = digitalRead(_startPin);
-  buttonState10 = digitalRead(_select); 
-
-  if (buttonState2 != lastButtonState2) {
-    if (buttonState2 == LOW) {
-      AbsMouse.press(MOUSE_LEFT);
-    } else {
-      AbsMouse.release(MOUSE_LEFT);
-    }
-    delay(10);
-  }
-  if (buttonState3 != lastButtonState3) {
-    if (buttonState3 == LOW) {
-      Keyboard.press(KEY_UP_ARROW);
-      delay(100);
-      Keyboard.releaseAll();
-    }
-    delay(10);
-  }
-  if (buttonState4 != lastButtonState4) {
-    if (buttonState4 == LOW) {
-      Keyboard.press(KEY_DOWN_ARROW);
-      delay(100);
-      Keyboard.releaseAll();
-    }
-    delay(10);
-  }
-  if (buttonState5 != lastButtonState5) {
-    if (buttonState5 == LOW) {
-      Keyboard.press(KEY_LEFT_ARROW);
-      delay(100);
-      Keyboard.releaseAll();
-    }
-    delay(10);
-  }
-  if (buttonState6 != lastButtonState6) {
-    if (buttonState6 == LOW) {
-      Keyboard.press(KEY_RIGHT_ARROW);
-      delay(100);
-      Keyboard.releaseAll();
-    }
-    delay(10);
-  }
-  if (buttonState7 != lastButtonState7) {
-    if (buttonState7 == LOW) {
-      AbsMouse.press(MOUSE_RIGHT);
-    } else {
-      AbsMouse.release(MOUSE_RIGHT);
-    }
-    delay(10);
-  }
-  if (buttonState8 != lastButtonState8) {
-    if (buttonState8 == LOW) {
-      AbsMouse.press(MOUSE_MIDDLE);
-    } else {
-      AbsMouse.release(MOUSE_MIDDLE);
-    }
-    delay(10);
-  }
-  if (buttonState9 != lastButtonState9) {
-    if (buttonState9 == LOW) {
-      Keyboard.press(KEY_BACKSPACE);
-      delay(100);
-      Keyboard.releaseAll();
-    }
-    delay(10);
-  }
-  if (buttonState10 != lastButtonState10) {
-    if (buttonState10 == LOW) {
-      Keyboard.press(KEY_RETURN);
-      delay(100);
-      Keyboard.releaseAll();
-    }
-    delay(10);
-  }
-
+void saveButtonStates() {
+  lastButtonState1 = buttonState1;
   lastButtonState2 = buttonState2;
   lastButtonState3 = buttonState3;
   lastButtonState4 = buttonState4;
@@ -303,39 +234,117 @@ void mouseButtons() {    // Setup Left, Right & Middle Mouse buttons
   lastButtonState10 = buttonState10;
 }
 
-void mouseCount() {    // Set count down on trigger
-  buttonState2 = digitalRead(_tigger);
+void go() {    // Setup Start Calibration Button
+  if (buttonState10 != lastButtonState10) {
+    if (buttonState10 == LOW) {
+      count--;
+    }
+    delay(50);
+  }
+}
+
+void mouseButtons() {    // Setup Left, Right & Middle Mouse buttons
+  if (buttonState1 != lastButtonState1) {
+    if (buttonState1 == LOW) {
+      AbsMouse.press(MOUSE_LEFT);
+    } else {
+      AbsMouse.release(MOUSE_LEFT);
+    }
+    delay(10);
+  }
   if (buttonState2 != lastButtonState2) {
     if (buttonState2 == LOW) {
+      Keyboard.press(KEY_UP_ARROW);
+      delay(100);
+      Keyboard.releaseAll();
+    }
+    delay(10);
+  }
+  if (buttonState3 != lastButtonState3) {
+    if (buttonState3 == LOW) {
+      Keyboard.press(KEY_DOWN_ARROW);
+      delay(100);
+      Keyboard.releaseAll();
+    }
+    delay(10);
+  }
+  if (buttonState4 != lastButtonState4) {
+    if (buttonState4 == LOW) {
+      Keyboard.press(KEY_LEFT_ARROW);
+      delay(100);
+      Keyboard.releaseAll();
+    }
+    delay(10);
+  }
+  if (buttonState5 != lastButtonState5) {
+    if (buttonState5 == LOW) {
+      Keyboard.press(KEY_RIGHT_ARROW);
+      delay(100);
+      Keyboard.releaseAll();
+    }
+    delay(10);
+  }
+  if (buttonState6 != lastButtonState6) {
+    if (buttonState6 == LOW) {
+      AbsMouse.press(MOUSE_RIGHT);
+    } else {
+      AbsMouse.release(MOUSE_RIGHT);
+    }
+    delay(10);
+  }
+  if (buttonState7 != lastButtonState7) {
+    if (buttonState7 == LOW) {
+      AbsMouse.press(MOUSE_MIDDLE);
+    } else {
+      AbsMouse.release(MOUSE_MIDDLE);
+    }
+    delay(10);
+  }
+  if (buttonState8 != lastButtonState8) {
+    if (buttonState8 == LOW) {
+      Keyboard.press(KEY_BACKSPACE);
+      delay(100);
+      Keyboard.releaseAll();
+    }
+    delay(10);
+  }
+  if (buttonState9 != lastButtonState9) {
+    if (buttonState9 == LOW) {
+      Keyboard.press(KEY_RETURN);
+      delay(100);
+      Keyboard.releaseAll();
+    }
+    delay(10);
+  }
+}
+
+void mouseCount() {    // Set count down on trigger
+  if (buttonState1 != lastButtonState1) {
+    if (buttonState1 == LOW) {
       count--;
     }
     delay(10);
   }
-  lastButtonState2 = buttonState2;
 }
 
 void reset() {    // Pause/Re-calibrate button
-  buttonState1 = digitalRead(_reload);
-  if (buttonState1 != lastButtonState1) {
-    if (buttonState1 == LOW) {
+  if (buttonState10 != lastButtonState10) {
+    if (buttonState10 == LOW) {
       count = 3;
       delay(50);
     }
     delay(50);
   }
-  lastButtonState1 = buttonState1;
 }
 
 void skip() {    // Unpause button
-  buttonState1 = digitalRead(_reload);
-  if (buttonState1 != lastButtonState1) {
-    if (buttonState1 == LOW) {
+  if (buttonState10 != lastButtonState10) {
+    if (buttonState10 == LOW) {
       count = 0;
       delay(50);
     }
     delay(50);
   }
-  lastButtonState1 = buttonState1;
 }
 
 void PrintResults() {    // Print results for debugging
