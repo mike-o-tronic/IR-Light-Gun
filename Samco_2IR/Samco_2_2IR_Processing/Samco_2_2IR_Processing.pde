@@ -20,7 +20,7 @@
 
 import processing.serial.*;
 
-int port = 2
+int port = 0
 ;   // If the 4 dots are RED try changing port number
 
 int lf = 10;    // Linefeed in ASCII
@@ -84,16 +84,16 @@ void draw() {
   drawCircle( p2x, p2y, p2color );
   drawCircle( p3x, p3y, p3color );
   drawCircle( p4x, p4y, p4color );
-  buttonTest( 100, 668, trigger );
-  buttonTest( 300, 568, up );
-  buttonTest( 300, 668, down );
-  buttonTest( 250, 618, left );
-  buttonTest( 350, 618, right );
-  buttonTest( 500, 668, a );
-  buttonTest( 600, 668, b );
-  buttonTest( 700, 668, start );
-  buttonTest( 800, 668, select );
-  buttonTest( 900, 668, reload );
+  buttonTest( 100, 668, 255*trigger );
+  buttonTest( 300, 568, 255*up );
+  buttonTest( 300, 668, 255*down );
+  buttonTest( 250, 618, 255*left );
+  buttonTest( 350, 618, 255*right );
+  buttonTest( 500, 668, 255*a );
+  buttonTest( 600, 668, 255*b );
+  buttonTest( 700, 668, 255*start );
+  buttonTest( 800, 668, 255*select );
+  buttonTest( 900, 668, 255*reload );
   textSize(12);
   textAlign(CENTER);
   fill ( 255, 255, 255 );

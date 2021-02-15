@@ -37,200 +37,63 @@ int oneX = 0;
 int twoY = 0;
 int twoX = 0;
 
+// number of buttons
+const int buttons = 11;
+
+// button names
+enum button {
+  Trigger,
+  Up,
+  Down,
+  Left,
+  Right,
+  A,
+  B,
+  Start,
+  Select,
+  Reload,
+  Pedal
+};
+
 // original ribbon direction (pin 1 at top)
-int _trigger = 13;               // Label Pin to buttons
-int _up = 10;
-int _down = 12;
-int _left = 11;
-int _right = 9;
-int _APin = A1;
-int _BPin = A0;
-int _startPin = A2;
-int _select = A3;
-int _reload = 7;
-int _pedal = 5;
-
-/*
+const int pin[] = {13, 10, 12, 11, 9, A1, A0, A2, A3, 7, 5};
 // reversed ribbon direction (pin 1 at bottom)
-int _trigger = 7;                // Label Pin to buttons
-int _up = 11;
-int _down = 9;
-int _left = 10;
-int _right = 12;
-int _APin = A1;
-int _BPin = A0;
-int _startPin = A2;
-int _select = A3;
-int _reload = 13;
-int _pedal = 5;
-*/
+// const int pin[] = {7, 11, 9, 10, 12, A1, A0, A2, A3, 13, 5};
 
-int triggerButton = 0;
-int upButton = 0;
-int downButton = 0;
-int leftButton = 0;
-int rightButton = 0;
-int aButton = 0;
-int bButton = 0;
-int startButton = 0;
-int selectButton = 0;
-int reloadButton = 0;
-
-int buttonState1 = 0;            // Set Button states
-int lastButtonState1 = 0;
-int buttonState2 = 0;
-int lastButtonState2 = 0;
-int buttonState3 = 0;
-int lastButtonState3 = 0;
-int buttonState4 = 0;
-int lastButtonState4 = 0;
-int buttonState5 = 0;
-int lastButtonState5 = 0;
-int buttonState6 = 0;
-int lastButtonState6 = 0;
-int buttonState7 = 0;
-int lastButtonState7 = 0;
-int buttonState8 = 0;
-int lastButtonState8 = 0;
-int buttonState9 = 0;
-int lastButtonState9 = 0;
-int buttonState10 = 0;
-int lastButtonState10 = 0;
+// button states
+int buttonState[buttons];
+int lastButtonState[buttons];
 
 
 void setup() {
-  digitalWrite (5, HIGH);              // This pin is used to power the IR Camera when using Samco PCB
-  delay(500);
-  myDFRobotIRPosition.begin();         // initialize the object in setup()
   Serial.begin(9600);
 
-  pinMode(_trigger, INPUT_PULLUP);      // Set pin modes
-  pinMode(_up, INPUT_PULLUP);
-  pinMode(_down, INPUT_PULLUP);
-  pinMode(_left, INPUT_PULLUP);
-  pinMode(_right, INPUT_PULLUP);       // Set pin modes
-  pinMode(_APin, INPUT_PULLUP);
-  pinMode(_BPin, INPUT_PULLUP);
-  pinMode(_startPin, INPUT_PULLUP);
-  pinMode(_select, INPUT_PULLUP);
-  pinMode(_reload, INPUT_PULLUP);
+  for (int i=0;i<buttons;i++) {
+    pinMode(pin[i], INPUT_PULLUP);         // Set pin modes
+    lastButtonState[i] = 0;                // Initialized last button state
+  }
+
+  myDFRobotIRPosition.begin();         // initialize the object in setup()
 }
 
 void loop() {
   getPosition();
   readButtonStates();
-  mouseButtons();
   saveButtonStates();
   PrintResults();
+  delay(10);
 }
 
 
 void readButtonStates() {
-  buttonState1 = digitalRead(_trigger);
-  buttonState2 = digitalRead(_up);
-  buttonState3 = digitalRead(_down);
-  buttonState4 = digitalRead(_left);
-  buttonState5 = digitalRead(_right);
-  buttonState6 = digitalRead(_APin);
-  buttonState7 = digitalRead(_BPin);
-  buttonState8 = digitalRead(_startPin);
-  buttonState9 = digitalRead(_select);
-  buttonState10 = digitalRead(_reload);
+  for (int i=0;i<buttons;i++) {
+    buttonState[i] = digitalRead(pin[i]);
+  }
 }
 
 void saveButtonStates() {
-  lastButtonState1 = buttonState1;
-  lastButtonState2 = buttonState2;
-  lastButtonState3 = buttonState3;
-  lastButtonState4 = buttonState4;
-  lastButtonState5 = buttonState5;
-  lastButtonState6 = buttonState6;
-  lastButtonState7 = buttonState7;
-  lastButtonState8 = buttonState8;
-  lastButtonState9 = buttonState9;
-  lastButtonState10 = buttonState10;
-}
-
-void mouseButtons() {    // Setup Cali, Left, Right & Middle Mouse buttons
-  if (buttonState1 != lastButtonState1) {
-    if (buttonState1 == LOW) {
-      triggerButton = 0;
-    } else {
-      triggerButton = 255;
-    }
-    delay(10);
-  }
-  if (buttonState2 != lastButtonState2) {
-    if (buttonState2 == LOW) {
-      upButton = 0;
-    } else {
-      upButton = 255;
-    }
-    delay(10);
-  }
-  if (buttonState3 != lastButtonState3) {
-    if (buttonState3 == LOW) {
-      downButton = 0;
-    } else {
-      downButton = 255;
-    }
-    delay(10);
-  }
-  if (buttonState4 != lastButtonState4) {
-    if (buttonState4 == LOW) {
-      leftButton = 0;
-    } else {
-      leftButton = 255;
-    }
-    delay(10);
-  }
-  if (buttonState5 != lastButtonState5) {
-    if (buttonState5 == LOW) {
-      rightButton = 0;
-    } else {
-      rightButton = 255;
-    }
-    delay(10);
-  }
-  if (buttonState6 != lastButtonState6) {
-    if (buttonState6 == LOW) {
-      aButton = 0;
-    } else {
-      aButton = 255;
-    }
-    delay(10);
-  }
-  if (buttonState7 != lastButtonState7) {
-    if (buttonState7 == LOW) {
-      bButton = 0;
-    } else {
-      bButton = 255;
-    }
-    delay(10);
-  }
-  if (buttonState8 != lastButtonState8) {
-    if (buttonState8 == LOW) {
-      startButton = 0;
-    } else {
-      startButton = 255;
-    }
-    delay(10);
-  }
-  if (buttonState9 != lastButtonState9) {
-    if (buttonState9 == LOW) {
-      selectButton = 0;
-    } else {
-      selectButton = 255;
-    }
-    delay(10);
-  }
-  if (buttonState10 != lastButtonState10) {
-    if (buttonState10 == LOW) {
-      reloadButton = 0;
-    } else {
-      reloadButton = 255;
-    }
-    delay(10);
+  for (int i=0;i<buttons;i++) {
+    lastButtonState[i] = buttonState[i];
   }
 }
 
@@ -251,25 +114,25 @@ void PrintResults() {    // Print results for debugging
   Serial.print( "," );
   Serial.print( positionY[3] );
   Serial.print( "," );
-  Serial.print( triggerButton );
+  Serial.print( buttonState[Trigger] );
   Serial.print( "," );
-  Serial.print( upButton );
+  Serial.print( buttonState[Up] );
   Serial.print( "," );
-  Serial.print( downButton );
+  Serial.print( buttonState[Down] );
   Serial.print( "," );
-  Serial.print( leftButton );
+  Serial.print( buttonState[Left] );
   Serial.print( "," );
-  Serial.print( rightButton );
+  Serial.print( buttonState[Right] );
   Serial.print( "," );
-  Serial.print( aButton );
+  Serial.print( buttonState[A] );
   Serial.print( "," );
-  Serial.print( bButton );
+  Serial.print( buttonState[B] );
   Serial.print( "," );
-  Serial.print( startButton );
+  Serial.print( buttonState[Start] );
   Serial.print( "," );
-  Serial.print( selectButton );
+  Serial.print( buttonState[Select] );
   Serial.print( "," );
-  Serial.print( reloadButton );
+  Serial.print( buttonState[Reload] );
   Serial.println();
   delay( 20 );
 }
