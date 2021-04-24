@@ -11,21 +11,15 @@
 
 */
 
-int positionX[4];               // RAW Sensor Values
-int positionY[4];
+enum coordinate {
+  X,
+  Y
+};
 
-int oneY = 0;                   // Re-mapped so left sensor is always read first
-int oneX = 0;
-int twoY = 0;
-int twoX = 0;
-
-int finalX = 0;                 // Values after tilt correction
-int finalY = 0;
-
-int xLeft = 0;                  // Stored calibration points
-int yTop = 0;
-int xRight = 0;
-int yBottom = 0;
+int rawPosition[4][2];                 // Four raw positions from sensor
+int finalPosition[2] = {0, 0};         // Pointer position after tilt correction
+int calibPosition[2][2] = {{128,672},  // Two calibration positions (top-left, bottom-right)
+                           {896,96}};  // Default calibration at 1/8 of the sensor range
 
 int MoveXAxis = 0;              // Unconstrained mouse postion
 int MoveYAxis = 0;               
@@ -33,21 +27,46 @@ int MoveYAxis = 0;
 int conMoveXAxis = 0;           // Constrained mouse postion
 int conMoveYAxis = 0;           
 
-enum state {
+enum ratioName {
+  r4by3,
+  r16by9,
+  r21by9,
+};
+
+enum ratioIdentifier {
+  R,
+  TL,
+  BR
+};
+
+const int ratio[][3][2] = {{{4096,3072},{512,384},{3584,2688}},       // Resolution, Top-Left, Bottom-Right
+                           {{4096,2304},{512,288},{3584,2016}},
+                           {{5376,2304},{672,288},{4704,2016}}};
+
+int screen = r16by9;
+
+enum stateName {
   Paused,
+  RatioSelection,
   TopLeft,
   BottomRight,
   Action
 };
 
 // Set intial state
-int currentState = Paused;
+int state = Paused;
+
+enum modeName {
+  AutoFire,
+  SingleShot
+};
+
+int mode = SingleShot;
 
 // number of buttons
 const int buttons = 11;
 
-// button names
-enum button {
+enum buttonName {
   Trigger,
   Up,
   Down,
@@ -78,22 +97,18 @@ int lastButtonState[buttons];
 
 DFRobotIRPosition myDFRobotIRPosition;
 
-int res_x = 1920;               // Put your screen resolution width here
-int res_y = 1080;               // Put your screen resolution height here
-
-
 void setup() {
   Serial.begin(9600);                     // For debugging (make sure your serial monitor has the same baud rate)
 
-  for (int i=0;i<buttons;i++) {
+  for (int i=0; i<buttons; i++) {
     pinMode(pin[i], INPUT_PULLUP);         // Set pin modes
     lastButtonState[i] = 0;                // Initialized last button state
   }
   
   myDFRobotIRPosition.begin();            // Start IR Camera
   
-  AbsMouse.init(res_x, res_y);
-  AbsMouse.move((res_x / 2), (res_y / 2));          // Set mouse position to centre of the screen
+  AbsMouse.init(ratio[screen][R][X], ratio[screen][R][Y]);
+  AbsMouse.move((ratio[screen][R][X] / 2), (ratio[screen][R][Y] / 2));          // Set mouse position to centre of the screen
   
   delay(500);
 }
@@ -102,42 +117,41 @@ void loop() {
   readButtonStates();
   getPosition();
 
-  switch (currentState) {
+  switch (state) {
     case Paused:
-      skip();
-      mouseCount();
-      mouseButtons();
+      pauseButtons();
+      break;
+    case RatioSelection:
+      selectionButtons();
+      demoRatio();
       break;
     case TopLeft:
-      AbsMouse.move(300, 200);
-      mouseCount();
-      reset();
-      xLeft = finalX;
-      yTop = finalY;
+      AbsMouse.move(ratio[screen][TL][X], ratio[screen][TL][Y]);
+      calibButtons();
+      calibPosition[0][X] = finalPosition[X];
+      calibPosition[0][Y] = finalPosition[Y];
       break;
     case BottomRight:
-      AbsMouse.move((res_x - 300), (res_y - 200));
-      mouseCount();
-      reset();
-      xRight = finalX;
-      yBottom = finalY;
+      AbsMouse.move(ratio[screen][BR][X], ratio[screen][BR][Y]);
+      calibButtons();
+      calibPosition[1][X] = finalPosition[X];
+      calibPosition[1][Y] = finalPosition[Y];
       break;
     case Action:
+      MoveXAxis = map (finalPosition[X], calibPosition[0][X], calibPosition[1][X], ratio[screen][TL][X], ratio[screen][BR][X]);
+      MoveYAxis = map (finalPosition[Y], calibPosition[0][Y], calibPosition[1][Y], ratio[screen][TL][Y], ratio[screen][BR][Y]);
+      conMoveXAxis = constrain (MoveXAxis, 0, ratio[screen][R][X]);
+      conMoveYAxis = constrain (MoveYAxis, 0, ratio[screen][R][Y]);
       AbsMouse.move(conMoveXAxis, conMoveYAxis);
-      mouseButtons();
-      MoveXAxis = map (finalX, xLeft, xRight, 300, (res_x - 300));
-      MoveYAxis = map (finalY, yTop, yBottom, 200, (res_y - 200));
-      conMoveXAxis = constrain (MoveXAxis, 0, res_x);
-      conMoveYAxis = constrain (MoveYAxis, 0, res_y);
-      reset();
+      actionButtons();
       break;
     default:
-      currentState = Paused;
+      state = Paused;
       break;
   }
   
   saveButtonStates();
-  PrintResults();
+  //PrintResults();
 }
 
 
@@ -148,51 +162,134 @@ void loop() {
 void getPosition() {    // Get tilt adjusted position from IR postioning camera
   myDFRobotIRPosition.requestPosition();
   if (myDFRobotIRPosition.available()) {
-    for (int i = 0; i < 4; i++) {
-      positionX[i] = myDFRobotIRPosition.readX(i);
-      positionY[i] = myDFRobotIRPosition.readY(i);
+    for (int i=0; i<4; i++) {
+      rawPosition[i][X] = myDFRobotIRPosition.readX(i);
+      rawPosition[i][Y] = myDFRobotIRPosition.readY(i);
     }
-    if (positionX[0] > positionX[1]) {
-      oneY = positionY[0];
-      oneX = positionX[0];
-      twoY = positionY[1];
-      twoX = positionX[1];
-    } else if (positionX[0] < positionX[1]) {
-      oneY = positionY[1];
-      oneX = positionX[1];
-      twoY = positionY[0];
-      twoX = positionX[0];
-    } else {
-      oneY = 1023;
-      oneX = 0;
-      twoY = 1023;
-      twoX = 0;
+    if (rawPosition[0][X] > rawPosition[1][X]) {
+      for (int i=0; i<2; i++) {
+        int temp = rawPosition[0][i];
+        rawPosition[0][i] = rawPosition[1][i];
+        rawPosition[1][i] = temp;
+      }
+    } else if (rawPosition[0][X] == rawPosition[1][X]) {
+      for (int i=0; i<2; i++) {
+        rawPosition[i][X] = 1023;
+        rawPosition[i][Y] = 0;
+      }
     }
-    finalX = 512 + cos(atan2(twoY - oneY, twoX - oneX) * -1) * (((oneX - twoX) / 2 + twoX) - 512) - sin(atan2(twoY - oneY, twoX - oneX) * -1) * (((oneY - twoY) / 2 + twoY) - 384);
-    finalY = 384 + sin(atan2(twoY - oneY, twoX - oneX) * -1) * (((oneX - twoX) / 2 + twoX) - 512) + cos(atan2(twoY - oneY, twoX - oneX) * -1) * (((oneY - twoY) / 2 + twoY) - 384);
+    finalPosition[X] = 512 + cos(atan2(rawPosition[1][Y] - rawPosition[0][Y], rawPosition[1][X] - rawPosition[0][X]) * -1) * (((rawPosition[0][X] - rawPosition[1][X]) / 2 + rawPosition[1][X]) - 512) - sin(atan2(rawPosition[1][Y] - rawPosition[0][Y], rawPosition[1][X] - rawPosition[0][X]) * -1) * (((rawPosition[0][Y] - rawPosition[1][Y]) / 2 + rawPosition[1][Y]) - 384);
+    finalPosition[Y] = 384 + sin(atan2(rawPosition[1][Y] - rawPosition[0][Y], rawPosition[1][X] - rawPosition[0][X]) * -1) * (((rawPosition[0][X] - rawPosition[1][X]) / 2 + rawPosition[1][X]) - 512) + cos(atan2(rawPosition[1][Y] - rawPosition[0][Y], rawPosition[1][X] - rawPosition[0][X]) * -1) * (((rawPosition[0][Y] - rawPosition[1][Y]) / 2 + rawPosition[1][Y]) - 384);
   } else {
     Serial.println("Device not available!");
   }
 }
 
 void readButtonStates() {
-  for (int i=0;i<buttons;i++) {
+  for (int i=0; i<buttons; i++) {
     buttonState[i] = digitalRead(pin[i]);
   }
 }
 
 void saveButtonStates() {
-  for (int i=0;i<buttons;i++) {
+  for (int i=0; i<buttons; i++) {
     lastButtonState[i] = buttonState[i];
   }
 }
 
-void mouseButtons() {    // Setup Left, Right & Middle Mouse buttons
+void pauseButtons() {    // Button funtions in pause state
+  if (buttonState[Reload] != lastButtonState[Reload]) {
+    if (buttonState[Reload] == LOW) {
+      state = Action;
+    }
+    delay(50);
+  }
   if (buttonState[Trigger] != lastButtonState[Trigger]) {
     if (buttonState[Trigger] == LOW) {
-      AbsMouse.press(MOUSE_LEFT);
+      state = TopLeft;
+    }
+    delay(50);
+  }
+  if (buttonState[Up] != lastButtonState[Up]) {
+    if (buttonState[Up] == LOW) {
+      state = RatioSelection;
+    }
+    delay(50);
+  }
+  if (buttonState[Down] != lastButtonState[Down]) {
+    if (buttonState[Down] == LOW) {
+      state = RatioSelection;
+    }
+    delay(50);
+  }
+  if (buttonState[A] != lastButtonState[A]) {
+    if (buttonState[A] == LOW) {
+      mode = AutoFire;
+    }
+    delay(50);
+  }
+  if (buttonState[B] != lastButtonState[B]) {
+    if (buttonState[B] == LOW) {
+      mode = SingleShot;
+    }
+    delay(50);
+  }
+}
+
+void selectionButtons() {    // Button funtions in pause state
+  if (buttonState[Reload] != lastButtonState[Reload]) {
+    if (buttonState[Reload] == LOW) {
+      state = Action;
+    }
+    delay(50);
+  }
+  if (buttonState[Trigger] != lastButtonState[Trigger]) {
+    if (buttonState[Trigger] == LOW) {
+      state = TopLeft;
+    }
+    delay(50);
+  }
+  if (buttonState[Up] != lastButtonState[Up]) {
+    if (buttonState[Up] == LOW) {
+      screen = constrain(screen+1,0,r21by9);
+      AbsMouse.init(ratio[screen][R][X], ratio[screen][R][Y]);
+    }
+    delay(50);
+  }
+  if (buttonState[Down] != lastButtonState[Down]) {
+    if (buttonState[Down] == LOW) {
+     screen = constrain(screen-1,0,r21by9);
+     AbsMouse.init(ratio[screen][R][X], ratio[screen][R][Y]);
+    }
+    delay(50);
+  }
+}
+
+void calibButtons() {    // Pause/Re-calibrate button
+  if (buttonState[Reload] != lastButtonState[Reload]) {
+    if (buttonState[Reload] == LOW) {
+      state = Paused;
+    }
+    delay(50);
+  }
+  if (buttonState[Trigger] != lastButtonState[Trigger]) {
+    if (buttonState[Trigger] == LOW) {
+      state++;
+    }
+    delay(50);
+  }
+}
+
+void actionButtons() {    // Setup Left, Right & Middle Mouse buttons
+  if (mode == AutoFire && buttonState[Trigger] == LOW) {
+    AbsMouse.press(MOUSE_LEFT);
+    AbsMouse.release(MOUSE_LEFT);
+    delay(10);
+  } else if (buttonState[Trigger] != lastButtonState[Trigger]) {
+    if (buttonState[Trigger] == LOW) {
+        AbsMouse.press(MOUSE_LEFT);
     } else {
-      AbsMouse.release(MOUSE_LEFT);
+        AbsMouse.release(MOUSE_LEFT);
     }
     delay(10);
   }
@@ -260,53 +357,45 @@ void mouseButtons() {    // Setup Left, Right & Middle Mouse buttons
     }
     delay(10);
   }
-}
-
-void mouseCount() {    // Set count down on trigger
-  if (buttonState[Trigger] != lastButtonState[Trigger]) {
-    if (buttonState[Trigger] == LOW) {
-      currentState++;
-      delay(50);
+  if (buttonState[Reload] != lastButtonState[Reload]) {
+    if (buttonState[Reload] == LOW) {
+      state = Paused;
     }
-    delay(50);
+    delay(10);
   }
 }
 
-void skip() {    // Unpause button
-  if (buttonState[Reload] != lastButtonState[Reload]) {
-    if (buttonState[Reload] == LOW) {
-      currentState = Action;
-      delay(50);
-    }
-    delay(50);
-  }
-}
+void demoRatio() {
+  static bool toggle = true;
+  static unsigned long tick = millis();
 
-void reset() {    // Pause/Re-calibrate button
-  if (buttonState[Reload] != lastButtonState[Reload]) {
-    if (buttonState[Reload] == LOW) {
-      currentState = Paused;
-      delay(50);
+  if ((millis() - tick) > 500) {
+    if (toggle) {
+      AbsMouse.move(ratio[screen][TL][X], ratio[screen][TL][Y]);
+    } else {
+      AbsMouse.move(ratio[screen][BR][X], ratio[screen][BR][Y]);
     }
-    delay(50);
+    toggle = !toggle;
+    tick = millis();
+    Serial.println(screen);
   }
 }
 
 void PrintResults() {    // Print results for debugging
   Serial.print("RAW: ");
-  Serial.print(finalX);
+  Serial.print(finalPosition[X]);
   Serial.print(", ");
-  Serial.print(finalY);
+  Serial.print(finalPosition[Y]);
   Serial.print("     State: ");
-  Serial.print(currentState);
+  Serial.print(state);
   Serial.print("     Calibration: ");
-  Serial.print(xLeft);
+  Serial.print(calibPosition[0][X]);
   Serial.print(", ");
-  Serial.print(yTop);
+  Serial.print(calibPosition[0][Y]);
   Serial.print(", ");
-  Serial.print(xRight);
+  Serial.print(calibPosition[1][X]);
   Serial.print(", ");
-  Serial.print(yBottom);
+  Serial.print(calibPosition[1][Y]);
   Serial.print("     Position: ");
   Serial.print(conMoveXAxis);
   Serial.print(", ");

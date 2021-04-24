@@ -29,13 +29,12 @@
 
 DFRobotIRPosition myDFRobotIRPosition;   // declare a IRCam object
 
-int positionX[4];               // RAW Sensor Values
-int positionY[4];
+enum coordinate {
+  X,
+  Y
+};
 
-int oneY = 0;                   // Re-mapped so left sensor is always read first
-int oneX = 0;
-int twoY = 0;
-int twoX = 0;
+int rawPosition[4][2];                   // Four raw positions from sensor
 
 // number of buttons
 const int buttons = 11;
@@ -68,7 +67,7 @@ int lastButtonState[buttons];
 void setup() {
   Serial.begin(9600);
 
-  for (int i=0;i<buttons;i++) {
+  for (int i=0; i<buttons; i++) {
     pinMode(pin[i], INPUT_PULLUP);         // Set pin modes
     lastButtonState[i] = 0;                // Initialized last button state
   }
@@ -81,84 +80,54 @@ void loop() {
   readButtonStates();
   saveButtonStates();
   PrintResults();
-  delay(10);
+  delay(50);
 }
 
 
 void readButtonStates() {
-  for (int i=0;i<buttons;i++) {
+  for (int i=0; i<buttons; i++) {
     buttonState[i] = digitalRead(pin[i]);
   }
 }
 
 void saveButtonStates() {
-  for (int i=0;i<buttons;i++) {
+  for (int i=0; i<buttons; i++) {
     lastButtonState[i] = buttonState[i];
   }
 }
 
 void PrintResults() {    // Print results for debugging
-  Serial.print( oneX );
-  Serial.print( "," );
-  Serial.print( oneY );
-  Serial.print( "," );
-  Serial.print( twoX );
-  Serial.print( "," );
-  Serial.print( twoY );
-  Serial.print( "," );
-  Serial.print( positionX[2] );
-  Serial.print( "," );
-  Serial.print( positionY[2] );
-  Serial.print( "," );
-  Serial.print( positionX[3] );
-  Serial.print( "," );
-  Serial.print( positionY[3] );
-  Serial.print( "," );
-  Serial.print( buttonState[Trigger] );
-  Serial.print( "," );
-  Serial.print( buttonState[Up] );
-  Serial.print( "," );
-  Serial.print( buttonState[Down] );
-  Serial.print( "," );
-  Serial.print( buttonState[Left] );
-  Serial.print( "," );
-  Serial.print( buttonState[Right] );
-  Serial.print( "," );
-  Serial.print( buttonState[A] );
-  Serial.print( "," );
-  Serial.print( buttonState[B] );
-  Serial.print( "," );
-  Serial.print( buttonState[Start] );
-  Serial.print( "," );
-  Serial.print( buttonState[Select] );
-  Serial.print( "," );
-  Serial.print( buttonState[Reload] );
+  for (int i=0; i<4; i++) {
+    Serial.print( rawPosition[i][X] );
+    Serial.print( "," );
+    Serial.print( rawPosition[i][Y] );
+    Serial.print( "," );
+  }
+  for (int i=0; i<buttons; i++) {
+    Serial.print( buttonState[i] );
+    Serial.print( "," );
+  }
   Serial.println();
-  delay( 20 );
 }
 
 void getPosition() {    // Get tilt adjusted position from IR postioning camera
   myDFRobotIRPosition.requestPosition();
   if (myDFRobotIRPosition.available()) {
-    for (int i = 0; i < 4; i++) {
-      positionX[i] = myDFRobotIRPosition.readX(i);
-      positionY[i] = map (myDFRobotIRPosition.readY(i), 0, 768, 768, 0 );
+    for (int i=0; i<4; i++) {
+      rawPosition[i][X] = myDFRobotIRPosition.readX(i);
+      rawPosition[i][Y] = 768 - myDFRobotIRPosition.readY(i);
     }
-    if (positionX[0] > positionX[1]) {
-      oneY = positionY[0];
-      oneX = positionX[0];
-      twoY = positionY[1];
-      twoX = positionX[1];
-    } else if (positionX[0] < positionX[1]) {
-      oneY = positionY[1];
-      oneX = positionX[1];
-      twoY = positionY[0];
-      twoX = positionX[0];
-    } else {
-      oneY = 1023;
-      oneX = 0;
-      twoY = 1023;
-      twoX = 0;
+    if (rawPosition[0][X] > rawPosition[1][X]) {
+      for (int i=0; i<2; i++) {
+        int temp = rawPosition[0][i];
+        rawPosition[0][i] = rawPosition[1][i];
+        rawPosition[1][i] = temp;
+      }
+    } else if (rawPosition[0][X] == rawPosition[1][X]) {
+      for (int i=0; i<2; i++) {
+        rawPosition[i][X] = 1023;
+        rawPosition[i][Y] = 0;
+      }
     }
   }
 }
